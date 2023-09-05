@@ -1,0 +1,119 @@
+<-- first approach -->
+$PAGE_TITLE "Overview";
+$PAGE_ID    5;
+
+* openMenuButton    -> Button { x "//button[id='open-menu']" }       :: @Menu
+* sendStatusButton  -> Button { x "//button[id='send-status']" }     :: void
+
+@Menu [
+    * closeButton -> Button { id "close_button" } :: @@
+]
+
+<-- second approach -->
+@(
+    PAGE_TITLE = "Overview",
+    PAGE_ID = 5
+);
+
+$ openMenuButton =
+    Button
+        (xpath "//button[..]")
+        @click <- $$ Menu
+    ;
+
+$$ Menu {
+    $ closeButton =
+        Button
+            (xpath "//button[..]")
+            @click <- $$ Menu
+}
+
+<-- thrid approach -->
+#page_name = "Overview"
+#page_id = 4;
+
+Button openMenuButton -> xpath "//button[id='open-menu']" {
+    override click {
+        self.click();
+        ```
+            return new Menu(this);
+        ```
+    }
+};
+
+sub Menu {
+    ele closeMenuButton: Button -> xpath "//button[id='close-menu']" {
+        @click {
+            self.click();
+            <- parent
+        }
+    }
+}
+
+<-- fourth approach -->
+page LoginPage {
+    element openMenuBtn :: $Button[ $xpath("//button[..]") ] ->
+        override click() {
+            self.click();
+            '''
+            return new Menu(this);
+            '''
+        }
+        ;
+
+    element sendStatusBtn :: $Button[ $xpath("//button[..]") ];
+
+    sub Menu {
+        element closeMenuBtn :: $Button[ $xpath("//button[..]") ] ->
+            override click() {
+                self.click();
+                return parent;
+            }
+            ;
+    }
+}
+
+<-- fifth approach -->
+page LoginPage {
+    element openMenuBtn :: Button[ xpath("//button[..]") ] => (click returns sub Menu)
+
+    sub Menu {
+        element closeMenuBtn :: Button[ xpath("//button[..]") ] => (click returns $parent)
+    }
+}
+
+<-- sixth approach -->
+page LoginPage: <-- page def following
+    element openMenuBtn: Button = x "//button[..]" <-- element of type button resolved by xpath "//button[..]"
+        | $self::click -> 'return new Menu(this)' <-- modifiers to openMenuBtn in this case click gets to return the exact java code in the single qoutes
+
+    sub Menu:
+        closeMenuBtn: Button = x "//button[..]"
+            | $self::click -> $parent;
+
+<-- generated code -->
+
+public class OverviewPage {
+    public Lazy<SupplyButton<MenuPage>> openMenuButton = actionButton(LazyButton.x("//button[id='open-menu']"), () -> new Menu(this));
+    public Lazy<Button<MenuPage>> openMenuButton = LazyButton.x("//button[id='open-menu']");
+    @RequiredArgsConstructor
+    public static class Menu {
+        private final OverviewPage parent;
+        public Lazy<SupplyButton<OverviewPage>> closeButton = actionButton(LazyButton.id("close_button"), () -> parent)
+    }
+}
+
+<-- api usage -->
+
+new OverviewPage()
+    .with((it) -> {
+        sout(it);
+    })
+    .openMenuButton.get().click()
+    .with((it) -> {
+        assertTrue(it.visible);
+    })
+    .closeButton.get().click();
+var overviewPage = new OverviewPage();
+var menu = overviewPage.openMenuButton.get().click();
+menu.closeButton.get().click();
